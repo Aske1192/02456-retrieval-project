@@ -1,6 +1,6 @@
 # 02456 Retrieval Project
 
-Starter code for information retrieval project work in the 02456 Deep Learning course (Fall 2026). Students complete the parts marked `TODO` or `NotImplementedError`.
+Starter code for information retrieval project work in the 02456 Deep Learning course (Fall 2026).
 
 ## Setup
 
