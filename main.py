@@ -4,7 +4,6 @@ from src.retrievers.tf_idf import TFIDF
 from src.data_utils.query import Query
 from src.retrievers.utils import retrieveQueryAndGetRelevancies
 from src.evaluation.metrics import Evaluate
-
 @hydra.main(config_path='config', config_name='fiqa_experiment.yaml', version_base=None)
 def main(cfg):
     ### Load a dataset
