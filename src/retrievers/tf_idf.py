@@ -11,7 +11,7 @@ class TFIDF(Retriever):
         self.corpus_vocabulary = self.GetCorpusVocabulary()
         self.idf = self.GetInverseDocumentFrequencies()
 
-        # Only run if we are in TFIDF class
+        # Only run if we are in TFIDF class. This is used to make sure the child class (bm25) doesn't create the tf-idf matrix.
         if type(self) == TFIDF:
             self.tfidf_matrix = self.GetDocumentsTFIDFVectors()
 
@@ -63,7 +63,7 @@ class TFIDF(Retriever):
         N = len(self.index.GetDocuments())
         frequencies = self.GetDocumentFrequencies()
 
-        IDF_dict = {term: np.log(N / DF) for term, DF in frequencies.items()}
+        IDF_dict = {term: np.log(N / nq) for term, nq in frequencies.items()}
         return IDF_dict
     
     
@@ -101,12 +101,16 @@ class TFIDF(Retriever):
             # Get term counts for each document
             counts = self.GetDocumentTermCounts(document)
 
-            # Calculate the document length
-            doc_length = sum(counts.values())
+            # Skip documents with no terms (nothing to put in the matrix)
+            if not counts:
+                continue
+
+            # Find count of most frequent term
+            most_frequent_term = max(counts.values())
 
             # Calculate TF-IDF for each term
             for term, count in counts.items():
-                tf = count / doc_length
+                tf = count / most_frequent_term
                 idf = self.idf[term]
                 tfidf = tf * idf
 
