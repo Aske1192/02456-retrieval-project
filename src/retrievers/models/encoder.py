@@ -1,14 +1,17 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from math import sqrt
+import math
+
+
+
 
 def attention(Q, K, V, mask=None):
   # trin 1: Dot product, we want words x words. We have two matrix of words x numbers.
   # the order is important as rows = queries and columns = keys
   # We have to define that its the last 2 dimension to transpose such that we always transpose the words and numbers. This was an error when heads and teksts were introduced.
   dot_product_matrix = Q @ K.transpose(-2,-1)
-  print(dot_product_matrix.shape)
+  #print(dot_product_matrix.shape)
 
   # trin 2: scale by sqrt(dimension), we use Q.shape[-1] to make sure we get number of dimensions pr. word.
   scaled_dot_product = dot_product_matrix / math.sqrt(Q.shape[-1])
@@ -22,7 +25,7 @@ def attention(Q, K, V, mask=None):
 
   # trin 3: softmax af attention, we use dim=-1 to always get the last dimension, which is keys.
   softmax_attention = torch.softmax(scaled_dot_product, dim=-1)
-  print(softmax_attention)
+  #print(softmax_attention)
   
   # trin 4: Every word becomes a weighted combinations of all the words values
   X_prime = softmax_attention @ V
@@ -163,6 +166,8 @@ class EncoderLayer(torch.nn.Module):
         x = self.norm2(x)
 
         return x
+
+
 
 
 class TransformerEncoder(nn.Module):
