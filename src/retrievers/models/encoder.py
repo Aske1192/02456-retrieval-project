@@ -170,38 +170,103 @@ class EncoderLayer(torch.nn.Module):
 
 
 
+class Embeddings(torch.nn.Module):
+    def __init__(self,vocab_size, emb_dim, max_len):
+        super(Embeddings, self).__init__()
+
+        # Vi opretter en matrix som fungere som ordbog med en række pr. token i hele ordforrådet.
+        self.token_embedding = nn.Embedding(vocab_size, emb_dim)
+
+        # Vi opretter en lignende tabel men med en række for hver plads i teksten.
+        self.position_embedding = nn.Embedding(max_len, emb_dim)
+
+    def forward(self, token_ids):
+        # Token_ids er (B, N)
+
+        # B = hvor mange tekster, N = antal tokens
+        B, N = token_ids.shape 
+
+        # Tokens får positions nummer fra 0 indeksering og op
+        positions = torch.arange(N, device = token_ids.device)
+
+        # Slår først op i "ordbogen" hvad der står, så slår vi op hvor står det henne. Det lægger man sammen 
+        # så hver vektor har en værdi som både er hvad og hvor det står.
+        x = self.token_embedding(token_ids) + self.position_embedding(positions)
+
+        return x
+
+
+
+
 class TransformerEncoder(nn.Module):
-    def __init__(self, n_layers: int, n_heads: int, emb_dim: int, hidden_dim: int, feed_forward_dim: int):
-        self.n_layers = n_layers
-        self.n_heads = n_heads
-        self.emb_dim = emb_dim
-        self.hidden_dim = hidden_dim
-        self.feed_forward_dim = feed_forward_dim
-        self.setup_model()
+    def __init__(self, vocab_size, max_len, n_layers, n_heads, emb_dim, feed_forward_dim, pooling_type="cls"):
+        super(TransformerEncoder, self).__init__()
 
-    def setup_model(self):
-        """
-        Instantiate the model.
-        """
-        self.model = None
-        raise NotImplementedError()
+        # opretter varibel for pooling type, kan enten være CLS, mean eller max
+        self.pooling_type = pooling_type
 
-    def pool(self, x):
-        """
-        Given a batch_size x sequence_length x emb_dim tensor, pool the input along the sequence_length dimension 
-        Returns: A pooled vector of shape batch_size x emb_dim
-        """
-        if self.cfg.model.pooling_type == 'cls':
-            raise NotImplementedError()
+        # Opretter to tabeller.
+        # En med en række for hvert ord i BERT ordbogen
+        # En med en række for hver plads i teksten.
+        # Det starter med tilfældige tal som læres under træningen.
+        self.embeddings = Embeddings(vocab_size, emb_dim, max_len)
+
+        # Opretter encoder layers på forhånd, som hver især har sine egne vægte.
+        # I hvert lager sørger encoder layer for at ordene snakker sammen gennem attention og bagefter evalure hver for sig i feedforward laget.
+        # nn.ModuleList så PyTorch kan se og træne lagene, ligesom i Week 6.
+        self.layers = nn.ModuleList([EncoderLayer(emb_dim, n_heads, feed_forward_dim) for _ in range(n_layers)])
+
+    def pool(self, x, attention_mask=None):
+
+
+
+        if self.pooling_type == "cls":
+            return x[:, 0]
+
+        elif self.pooling_type == "mean":
+                if attention_mask is None:
+                    return x.mean(dim=1)
+
+                # trin 1: masken er (B, N), men x er (B, N, emb_dim)
+                # Vi tilføjer en ekstra dimenstion til enden så det bliver (B, N, 1), ligesom i MultiHeadAttention
+                mask = attention_mask.unsqueeze(-1)
+
+                # Vi er nødt til at lave den fra hel tal til decimaler for at kunne gange med x
+                mask = mask.float()
+
+                # trin 2: padding gøres til 0, så det ikke tæller med i summen
+                x = x * mask
+
+                # trin 3: lægger alle pladserne sammen for hver input. Så vi har (B, emb_dim)
+                summed = x.sum(dim=1)
+
+                #trin 4: tæl hvor mange ord der er i hver input (B, 1)
+                n_words = mask.sum(dim=1)
+
+                # trin 5: mean = sum / antal ord. Ikke N, fordi så var padding talt med og havde trukket resultatet ned.
+                return summed / n_words
         
-        elif self.cfg.model.pooling_type == 'max':
-            raise NotImplementedError()
-        
-        elif self.cfg.model.pooling_type == 'mean':
-            raise NotImplementedError()
 
-    def forward(self, x: torch.tensor) -> torch.tensor:
-        """
-        Run a forward pass on the model
-        """
-        raise NotImplementedError()
+        elif self.pooling_type == "max":
+                if attention_mask is None:
+                    return x.max(dim=1).values
+
+                # trin 1: masken er (B, N) og x er (B, N, emb_dim), så vi tilføjer en dimension og ender med (B, N, 1)
+                mask = attention_mask.unsqueeze(-1)
+
+                # trin 2: vi tager padding i x og sætter til -inf, så max aldrig kan vælge den. Præcis som i attention.
+                x = x.masked_fill(mask == 0, -math.inf)
+
+                # trin 3: for hver tal tager vi det ord med højest værdi.
+                return x.max(dim=1).values
+
+
+
+    def forward(self, token_ids, attention_mask=None):
+
+        x = self.embeddings(token_ids)
+
+        for layer in self.layers:
+            x = layer(x, attention_mask)
+
+        return self.pool(x, attention_mask)
