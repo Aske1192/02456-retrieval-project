@@ -45,4 +45,8 @@ def Evaluate(relevancies: list[list[bool]], queries: list[Query]):
     scores['Recall@k'] = total_recallAtK / n_queries
     scores['MRR'] = total_MRR / n_queries
     
+<<<<<<< HEAD
     return scores
+=======
+    return scores
+>>>>>>> 2c06ea8 (working training codebase)
