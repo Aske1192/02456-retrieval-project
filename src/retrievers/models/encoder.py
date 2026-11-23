@@ -270,6 +270,4 @@ class TransformerEncoder(nn.Module):
             x = layer(x, attention_mask)
 
         return self.pool(x, attention_mask)
-=======
-        return self.pool(x, attention_mask)
->>>>>>> 2c06ea8 (working training codebase)
+
