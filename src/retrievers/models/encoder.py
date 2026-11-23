@@ -269,7 +269,6 @@ class TransformerEncoder(nn.Module):
         for layer in self.layers:
             x = layer(x, attention_mask)
 
-<<<<<<< HEAD
         return self.pool(x, attention_mask)
 =======
         return self.pool(x, attention_mask)
